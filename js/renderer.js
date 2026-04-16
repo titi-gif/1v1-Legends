@@ -30,6 +30,46 @@ const Renderer = {
         this._drawPlayer(state.p1);
         this._drawPlayer(state.p2);
         this._drawEffects(state);
+
+        // --- DÉCOMPTE ---
+        if (state.countdown !== null && state.countdown > 0) {
+            const cx = canvas.width  / 2;
+            const cy = canvas.height / 2;
+
+            // Fond semi-transparent
+            ctx.save();
+            ctx.fillStyle = 'rgba(0,0,0,0.45)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Cercle pulsant
+            const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 80);
+            const radius = 90 * pulse;
+            const gradient = ctx.createRadialGradient(cx, cy, 10, cx, cy, radius);
+            gradient.addColorStop(0, 'rgba(255,220,0,0.95)');
+            gradient.addColorStop(1, 'rgba(255,100,0,0.0)');
+            ctx.beginPath();
+            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+
+            // Chiffre
+            ctx.font = `bold ${120 * pulse}px 'Segoe UI', sans-serif`;
+            ctx.textAlign    = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle    = '#fff';
+            ctx.shadowColor  = '#ff6600';
+            ctx.shadowBlur   = 40;
+            ctx.fillText(state.countdown, cx, cy);
+
+            // Texte "Prêt ?"
+            ctx.font         = 'bold 28px sans-serif';
+            ctx.fillStyle    = 'rgba(255,255,255,0.8)';
+            ctx.shadowBlur   = 10;
+            ctx.fillText('Prêts ?', cx, cy + 90);
+
+            ctx.restore();
+        }
+
     },
 
 
