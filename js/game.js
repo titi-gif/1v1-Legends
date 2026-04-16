@@ -55,21 +55,31 @@ const GameLoop = {
             paused:    false
         };
 
+        this.state.countdown = null;
+
         this.keys = Player.buildKeyMap();
         this._bindKeys();
 
         if (mode === 'online') Network.startPing();
 
+        this.paused = true;
+        this._startCountdown();
         this._loop();
     },
 
     _loop() {
         if (!this.running) return;
         this.rafId = requestAnimationFrame(() => this._loop());
-        if (this.paused) return;
 
         const { state, keys } = this;
         const canvas = Renderer.canvas;
+
+        // Toujours dessiner même en pause (pour afficher le décompte)
+        if (this.paused) {
+            if (state) Renderer.draw(state);
+            return;
+        }
+
         this.frameCount++;
 
         // 1. DÉPLACEMENT
@@ -79,7 +89,6 @@ const GameLoop = {
                 if (state.p2._remoteKeys) {
                     Player.update(state.p2, state.p2._remoteKeys, canvas);
                 }
-                // Sync état vers guest toutes les 2 frames
                 if (this.frameCount % 2 === 0) {
                     Network.send({
                         type:    'state',
@@ -93,16 +102,19 @@ const GameLoop = {
                     });
                 }
             } else {
-                // Guest : envoie ses touches au host chaque frame
                 Network.sendInputs(keys);
             }
+        } else {
+            // Mode local
+            Player.update(state.p1, keys.p1, canvas);
+            Player.update(state.p2, keys.p2, canvas);
         }
 
         // 2. AIMANT
         if (state.p1.magnetActive) Physics.magnetPull(state.ball, state.p1, 1.5);
         if (state.p2.magnetActive) Physics.magnetPull(state.ball, state.p2, 1.5);
 
-        // 3. PHYSIQUE BALLE (seulement le host en online)
+        // 3. PHYSIQUE BALLE
         Physics.updateTrail(state.ball);
         let goalResult = null;
         if (this.mode === 'local' || Network.isHost) {
@@ -126,7 +138,6 @@ const GameLoop = {
         Powerups.update(canvas, state.p1, state.p2, state.ball);
 
         if (this.mode === 'online' && Network.isHost) {
-            // Détecte si un power-up a été ramassé en comparant les stats
             if (state.p1.powerMult !== boostBefore.p1.powerMult ||
                 state.p1.speedMult !== boostBefore.p1.speedMult ||
                 state.p1.shieldActive !== boostBefore.p1.shieldActive) {
@@ -138,7 +149,6 @@ const GameLoop = {
                 Network.send({ type: 'notif', msg: `⚡ ${state.p2.name} a ramassé un boost !` });
             }
         }
-
 
         // 6. COOLDOWNS
         Abilities.updateCooldowns(state.p1);
@@ -164,9 +174,8 @@ const GameLoop = {
         this._rechargeUltimate(state.p1);
         this._rechargeUltimate(state.p2);
 
-        // 11. HUD ← AJOUTER ICI
+        // 11. HUD
         UI.updateHUD(state);
-
 
         // 12. RENDU
         Renderer.draw(state);
@@ -188,6 +197,15 @@ const GameLoop = {
 
         state.goalFlash = 1;
 
+        // ✅ Notifie immédiatement le guest du but
+        if (this.mode === 'online' && Network.isHost) {
+            Network.send({
+                type:   'goal',
+                scorer: result,
+                scores: state.scores
+            });
+        }
+
         if (state.scores.p1 >= this.WIN_SCORE) { this.handleMatchEnd(state.p1.name); return; }
         if (state.scores.p2 >= this.WIN_SCORE) { this.handleMatchEnd(state.p2.name); return; }
 
@@ -196,8 +214,36 @@ const GameLoop = {
             Physics.resetBall(state.ball, canvas);
             Player.resetPosition(state.p1, canvas);
             Player.resetPosition(state.p2, canvas);
-            this.paused = false;
-        }, 2000);
+            this._startCountdown();
+        }, 1500);
+    },
+
+    _startCountdown() {
+        let count = 3;
+        this.state.countdown = count;
+
+        // ✅ Envoie le countdown au guest
+        if (this.mode === 'online' && Network.isHost) {
+            Network.send({ type: 'countdown', value: count });
+        }
+
+        const interval = setInterval(() => {
+            count--;
+            if (count <= 0) {
+                clearInterval(interval);
+                this.state.countdown = null;
+                this.paused = false;
+                // ✅ Informe le guest que le jeu reprend
+                if (this.mode === 'online' && Network.isHost) {
+                    Network.send({ type: 'countdown', value: 0 });
+                }
+            } else {
+                this.state.countdown = count;
+                if (this.mode === 'online' && Network.isHost) {
+                    Network.send({ type: 'countdown', value: count });
+                }
+            }
+        }, 1000);
     },
 
     _handleTimeUp() {
@@ -266,7 +312,6 @@ const GameLoop = {
                     if (e.code === 'KeyH') this._handleAbility(this.state.p1, 1);
                     if (e.code === 'KeyT') this._handleUltimate(this.state.p1);
                 } else {
-                    // Guest — mêmes touches que P1
                     if (e.code === 'KeyF') Network.send({ type: 'action', action: 'shoot' });
                     if (e.code === 'KeyG') Network.send({ type: 'action', action: 'ability', index: 0 });
                     if (e.code === 'KeyH') Network.send({ type: 'action', action: 'ability', index: 1 });
