@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1v1 Legends ⚽</title>
+    <link rel="stylesheet" href="css/menu.css">
+    <link rel="stylesheet" href="css/game.css">
+    <link rel="stylesheet" href="css/ui.css">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
+
+<div id="toast-container"></div>
+<div id="notif-container"></div>
+
+<!-- ================================================
+     SCREEN : MENU PRINCIPAL
+     ================================================ -->
+<div id="screen-menu" class="screen active">
+    <div class="menu-bg">
+        <div class="ball-deco">⚽</div>
+        <div class="particles" id="particles"></div>
+    </div>
+
+    <div class="menu-container">
+        <div class="title-block">
+            <h1 class="title">1v1 <span>Legends</span></h1>
+            <p class="subtitle">⚡ Le foot ultime entre légendes</p>
+        </div>
+
+        <div class="menu-buttons">
+            <!-- ✅ Plus de bouton local -->
+            <button class="btn btn-primary"
+                    onclick="UI.showScreen('screen-online')">
+                🌐 Jouer en ligne
+            </button>
+            <button class="btn btn-secondary"
+                    onclick="UI.showScreen('screen-settings')">
+                ⚙️ Paramètres
+            </button>
+            <button class="btn btn-secondary"
+                    onclick="UI.showScreen('screen-controls')">
+                🎮 Contrôles
+            </button>
+        </div>
+
+        <p style="font-size:11px;color:var(--text-dim);opacity:0.5;">
+            v1.0 - Fait avec ❤️
+        </p>
+    </div>
+</div>
+
+<!-- ================================================
+     SCREEN : ONLINE
+     ================================================ -->
+<div id="screen-online" class="screen">
+    <div class="online-container">
+        <div class="online-title">🌐 Jouer en ligne</div>
+
+        <div class="card">
+            <div class="pseudo-block">
+                <label>Ton pseudo</label>
+                <input id="pseudo-input"
+                       class="input-field"
+                       type="text"
+                       placeholder="Entre ton pseudo..."
+                       maxlength="16">
+            </div>
+        </div>
+
+        <div class="online-divider">
+            <!-- Créer -->
+            <div class="online-col">
+                <div class="col-label">🏠 Créer une partie</div>
+                <button class="btn btn-primary"
+                        onclick="Network.createRoom()">
+                    ➕ Créer
+                </button>
+
+                <div id="room-code-display" class="room-code-block hidden">
+                    <div class="room-code-label">Code de ta partie</div>
+                    <div id="room-code-text" class="room-code-value">---</div>
+                    <div class="room-code-actions">
+                        <button class="btn btn-sm btn-accent"
+                                onclick="Network.copyCode()">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="waiting-text">⏳ En attente de ton adversaire...</p>
+                </div>
+            </div>
+
+            <div class="divider-bar"></div>
+
+            <!-- Rejoindre -->
+            <div class="online-col">
+                <div class="col-label">🔗 Rejoindre</div>
+                <input id="join-code-input"
+                    class="input-field"
+                    type="text"
+                    placeholder="Colle le code ici..."
+                    style="letter-spacing:1px;font-size:11px;">
+                <button class="btn btn-green"
+                        onclick="Network.joinRoom()">
+                    ✅ Rejoindre
+                </button>
+            </div>
+        </div>
+
+        <div id="online-status" class="status-bar">
+            🔌 Non connecté
+        </div>
+
+        <button class="btn btn-secondary"
+                onclick="UI.showScreen('screen-menu')">
+            ← Retour
+        </button>
+    </div>
+</div>
+
+<!-- ================================================
+     SCREEN : SÉLECTION PERSONNAGE
+     ================================================ -->
+<div id="screen-character" class="screen">
+    <div class="character-container">
+        <h2 id="select-title">⚡ Choisis ton Legend</h2>
+
+        <div class="char-panels">
+
+            <!-- ✅ Panel HOST (P1) - caché par défaut -->
+            <div id="char-select-p1" class="char-panel hidden">
+                <div class="char-panel-label p1">⚡ Joueur 1 (Toi)</div>
+                <div id="chars-p1" class="chars-grid"></div>
+
+                <div id="preview-p1" class="char-preview">
+                    <span style="color:var(--text-dim);font-size:14px;">
+                        Sélectionne un Legend
+                    </span>
+                </div>
+
+                <div id="stats-p1" class="stats-bars" style="display:none">
+                    <div class="stat-row">
+                        <span class="stat-label">⚡ Vitesse</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p1-speed"
+                                 style="background:linear-gradient(90deg,#6366f1,#818cf8)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p1-speed-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">💥 Puissance</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p1-power"
+                                 style="background:linear-gradient(90deg,#ef4444,#f87171)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p1-power-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">⚡ Stamina</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p1-stamina"
+                                 style="background:linear-gradient(90deg,#10b981,#6ee7b7)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p1-stamina-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">🛡️ Défense</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p1-defense"
+                                 style="background:linear-gradient(90deg,#06b6d4,#67e8f9)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p1-defense-val"></span>
+                    </div>
+                </div>
+
+                <div id="abilities-p1" class="abilities-preview" style="display:none"></div>
+
+                <button id="confirm-p1" class="btn btn-primary" disabled
+                        onclick="confirmMyChar()">
+                    ✅ Confirmer ce Legend
+                </button>
+            </div>
+
+            <!-- ✅ Panel GUEST (P2) - caché par défaut -->
+            <div id="char-select-p2" class="char-panel hidden">
+                <div class="char-panel-label p2">🔥 Joueur 2 (Toi)</div>
+                <div id="chars-p2" class="chars-grid"></div>
+
+                <div id="preview-p2" class="char-preview">
+                    <span style="color:var(--text-dim);font-size:14px;">
+                        Sélectionne un Legend
+                    </span>
+                </div>
+
+                <div id="stats-p2" class="stats-bars" style="display:none">
+                    <div class="stat-row">
+                        <span class="stat-label">⚡ Vitesse</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p2-speed"
+                                 style="background:linear-gradient(90deg,#6366f1,#818cf8)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p2-speed-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">💥 Puissance</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p2-power"
+                                 style="background:linear-gradient(90deg,#ef4444,#f87171)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p2-power-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">⚡ Stamina</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p2-stamina"
+                                 style="background:linear-gradient(90deg,#10b981,#6ee7b7)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p2-stamina-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">🛡️ Défense</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p2-defense"
+                                 style="background:linear-gradient(90deg,#06b6d4,#67e8f9)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p2-defense-val"></span>
+                    </div>
+                </div>
+
+                <div id="abilities-p2" class="abilities-preview" style="display:none"></div>
+
+                <button id="confirm-p2" class="btn btn-danger" disabled
+                        onclick="confirmMyChar()">
+                    ✅ Confirmer ce Legend
+                </button>
+            </div>
+
+        </div>
+
+        <button class="btn btn-secondary btn-sm"
+                onclick="UI.showScreen('screen-menu')">
+            ← Retour au menu
+        </button>
+    </div>
+</div>
+
+<!-- ================================================
+     SCREEN : JEU
+     ================================================ -->
+<div id="screen-game" class="screen">
+    <div class="game-wrapper">
+
+        <canvas id="gameCanvas" width="1280" height="720"></canvas>
+
+        <div id="hud">
+            <div class="hud-player p1">
+                <div class="hud-name">
+                    <span id="hud-p1-emoji">⚡</span>
+                    <span id="hud-p1-name">Joueur 1</span>
+                </div>
+                <div class="stamina-bar-bg">
+                    <div id="hud-p1-stamina" class="stamina-bar-fill" style="width:100%"></div>
+                </div>
+                <div class="ult-bar-bg">
+                    <div id="hud-p1-ult" class="ult-bar-fill" style="width:0%"></div>
+                </div>
+                <div class="hud-abilities" id="hud-abilities-p1"></div>
+            </div>
+
+            <div id="hud-center">
+                <div class="hud-score">
+                    <span id="score-p1">0</span>
+                    <span style="color:var(--text-dim);font-size:24px;"> - </span>
+                    <span id="score-p2">0</span>
+                </div>
+                <div id="hud-timer" class="hud-timer">3:00</div>
+                <div id="ping-display" style="display:none">--ms</div>
+            </div>
+
+            <div class="hud-player p2">
+                <div class="hud-name">
+                    <span id="hud-p2-name">Joueur 2</span>
+                    <span id="hud-p2-emoji">🔥</span>
+                </div>
+                <div class="stamina-bar-bg">
+                    <div id="hud-p2-stamina" class="stamina-bar-fill" style="width:100%"></div>
+                </div>
+                <div class="ult-bar-bg">
+                    <div id="hud-p2-ult" class="ult-bar-fill" style="width:0%"></div>
+                </div>
+                <div class="hud-abilities" id="hud-abilities-p2"></div>
+            </div>
+        </div>
+
+        <div id="goal-overlay" class="hidden">
+            <div class="goal-text">⚽ GOAL !</div>
+            <div class="goal-scorer"></div>
+        </div>
+
+        <div id="end-screen" class="hidden">
+            <div class="winner-text">---</div>
+            <div class="final-score">0 - 0</div>
+            <div class="end-buttons">
+                <button class="btn btn-primary" onclick="replayGame()">🔄 Rejouer</button>
+                <button class="btn btn-secondary" onclick="goToMenu()">🏠 Menu</button>
+            </div>
+        </div>
+
+        <div id="pause-overlay" class="hidden">
+            <div class="pause-title">⏸ PAUSE</div>
+            <div class="pause-buttons">
+                <button class="btn btn-primary"
+                        onclick="GameLoop.togglePause()">▶ Reprendre</button>
+                <button class="btn btn-secondary"
+                        onclick="goToMenu()">🏠 Menu principal</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ================================================
+     SCREEN : PARAMÈTRES
+     ================================================ -->
+<div id="screen-settings" class="screen">
+    <div class="settings-container">
+        <div class="settings-title">⚙️ Paramètres</div>
+
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>🔥 Zones spéciales</span>
+                <span>Boost, glace, précision...</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="toggle-zones" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>🎁 Power-ups</span>
+                <span>Objets aléatoires en jeu</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="toggle-powerups" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>⏱️ Durée du match</span>
+                <span>En minutes</span>
+            </div>
+            <select id="match-duration" class="setting-select">
+                <option value="1">1 min</option>
+                <option value="2">2 min</option>
+                <option value="3" selected>3 min</option>
+                <option value="5">5 min</option>
+            </select>
+        </div>
+
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>🏆 Score victoire</span>
+                <span>Buts pour gagner</span>
+            </div>
+            <select id="win-score" class="setting-select">
+                <option value="3">3 buts</option>
+                <option value="5" selected>5 buts</option>
+                <option value="7">7 buts</option>
+                <option value="99">∞ Infini</option>
+            </select>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveSettings()">
+            💾 Sauvegarder
+        </button>
+        <button class="btn btn-secondary"
+                onclick="UI.showScreen('screen-menu')">
+            ← Retour
+        </button>
+    </div>
+</div>
+
+<!-- ================================================
+     SCREEN : CONTRÔLES
+     ================================================ -->
+<div id="screen-controls" class="screen">
+    <div class="settings-container">
+        <div class="settings-title">🎮 Contrôles</div>
+
+        <div class="card">
+            <div class="card-title" style="color:var(--primary)">⚡ Joueur 1</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;">
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Se déplacer</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">Q / D</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Sauter (x2)</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">Z</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Tirer</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">F</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Capacité 1</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">G</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Capacité 2</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">H</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">🌟 ULTIME</span>
+                    <span style="font-family:monospace;background:rgba(250,204,21,0.15);color:var(--accent);padding:2px 8px;border-radius:6px;">T</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Sprint</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">SHIFT</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" style="color:var(--secondary)">🔥 Joueur 2</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;">
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Se déplacer</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">← / →</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Sauter (x2)</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">↑</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Tirer</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">L</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Capacité 1</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">M</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Capacité 2</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">;</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">🌟 ULTIME</span>
+                    <span style="font-family:monospace;background:rgba(250,204,21,0.15);color:var(--accent);padding:2px 8px;border-radius:6px;">P</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="text-align:center;">
+            <span style="font-size:13px;color:var(--text-dim)">
+                ⏸ <strong style="color:var(--text)">Echap</strong> → Pause
+            </span>
+        </div>
+
+        <button class="btn btn-secondary"
+                onclick="UI.showScreen('screen-menu')">
+            ← Retour
+        </button>
+    </div>
+</div>
+
+<!-- ================================================
+     SCRIPTS (ordre important)
+     ================================================ -->
+<script src="js/characters.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/abilities.js"></script>
+<script src="js/powerups.js"></script>
+<script src="js/zones.js"></script>
+<script src="js/player.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/network.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>
