@@ -2,14 +2,15 @@
 //  player.js - Création et logique des joueurs
 // ============================================
 
+// Contrôles par défaut (modifiés via setControls() dans main.js)
+let p1Controls = 'zqsd';   // 'zqsd' ou 'arrows'
+let p2Controls = 'arrows'; // 'zqsd' ou 'arrows'
+
 const Player = {
 
-    // --- Crée un joueur ---
     create(index, character, canvas) {
         const isP1  = index === 1;
-        const baseX = isP1
-            ? canvas.width * 0.25
-            : canvas.width * 0.75;
+        const baseX = isP1 ? canvas.width * 0.25 : canvas.width * 0.75;
 
         return {
             id:          index,
@@ -73,12 +74,10 @@ const Player = {
         };
     },
 
-    // --- Mise à jour physique du joueur ---
     update(player, keys, canvas) {
         if (player.stunned) {
             player.stunTimer--;
             if (player.stunTimer <= 0) player.stunned = false;
-            // Pas de gravité, juste clamp
             this._clampPosition(player, canvas);
             return;
         }
@@ -93,7 +92,6 @@ const Player = {
             * player.zoneMult
             * (player.frozen ? 0.3 : 1);
 
-        // Mouvement horizontal
         if (keys.left && !player.frozen) {
             player.vx          = -spd;
             player.facingRight = false;
@@ -104,7 +102,6 @@ const Player = {
             player.vx *= 0.8;
         }
 
-        // Mouvement vertical (haut/bas sans gravité)
         if (keys.up && !player.frozen) {
             player.vy = -spd;
         } else if (keys.down && !player.frozen) {
@@ -113,29 +110,22 @@ const Player = {
             player.vy *= 0.8;
         }
 
-        // Stamina
-        if ((keys.left || keys.right || keys.up || keys.down)) {
+        if (keys.left || keys.right || keys.up || keys.down) {
             player.stamina -= 0.15;
         } else {
-            player.stamina = Math.min(
-                player.maxStamina,
-                player.stamina + player.staminaRegen
-            );
+            player.stamina = Math.min(player.maxStamina, player.stamina + player.staminaRegen);
         }
         player.stamina = Math.max(0, player.stamina);
 
-        // Charge ultime
         if (player.ultimate < 100) {
             player.ultimate = Math.min(100, player.ultimate + player.ultChargeRate);
         }
 
-        // Bouclier timer
         if (player.shield && player.shieldTimer > 0) {
             player.shieldTimer--;
             if (player.shieldTimer <= 0) player.shield = false;
         }
 
-        // Appliquer le mouvement
         player.x += player.vx;
         player.y += player.vy;
 
@@ -144,10 +134,10 @@ const Player = {
 
     _clampPosition(player, canvas) {
         const margin = player.radius;
-        if (player.x < margin)                player.x = margin;
-        if (player.x > canvas.width - margin) player.x = canvas.width - margin;
-        if (player.y < margin + 70)           player.y = margin + 70;
-        if (player.y > canvas.height - 60 - margin) player.y = canvas.height - 60 - margin;
+        if (player.x < margin)                       player.x = margin;
+        if (player.x > canvas.width - margin)        player.x = canvas.width - margin;
+        if (player.y < margin + 70)                  player.y = margin + 70;
+        if (player.y > canvas.height - 60 - margin)  player.y = canvas.height - 60 - margin;
     },
 
     resetPosition(player, canvas) {
@@ -170,98 +160,126 @@ const Player = {
         };
     },
 
-    KEYS_P1: {
-        left:     'KeyQ',
-        right:    'KeyD',
-        up:       'KeyZ',
-        down:     'KeyS',
-        shoot:    'KeyF',
-        ability1: 'KeyG',
-        ability2: 'KeyH',
-        ultimate: 'KeyT'
-    },
+    // ============================================
+    //  Helpers internes ZQSD (e.key pour AZERTY)
+    // ============================================
+    _isZqsdUp(e)    { return e.key === 'z' || e.key === 'Z'; },
+    _isZqsdDown(e)  { return e.code === 'KeyS'; },
+    _isZqsdLeft(e)  { return e.key === 'q' || e.key === 'Q'; },
+    _isZqsdRight(e) { return e.code === 'KeyD'; },
 
-    KEYS_P2: {
-        left:     'ArrowLeft',
-        right:    'ArrowRight',
-        up:       'ArrowUp',
-        down:     'ArrowDown',
-        shoot:    'KeyL',
-        ability1: 'KeyM',
-        ability2: 'Semicolon',
-        ultimate: 'KeyP'
-    },
-
+    // ============================================
+    //  handleKeyDown
+    // ============================================
     handleKeyDown(e, keys, mode) {
         if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) {
             e.preventDefault();
         }
 
-        if (mode !== 'online' || Network.isHost) {
-            if (e.key === 'q' || e.key === 'Q') keys.p1.left     = true;
-            if (e.code === 'KeyD')              keys.p1.right    = true;
-            if (e.key === 'z' || e.key === 'Z') keys.p1.up       = true;
-            if (e.code === 'KeyS')              keys.p1.down     = true;
-            if (e.code === 'KeyF')              keys.p1.shoot    = true;
-            if (e.code === 'KeyG')              keys.p1.ability1 = true;
-            if (e.code === 'KeyH')              keys.p1.ability2 = true;
-            if (e.code === 'KeyT')              keys.p1.ultimate = true;
+        const isP1Active = (mode !== 'online') || Network.isHost;
+        const isP2Active = (mode === 'local')  || (mode === 'online' && !Network.isHost);
+
+        // ---- P1 ----
+        if (isP1Active) {
+            if (p1Controls === 'zqsd') {
+                if (this._isZqsdUp(e))    keys.p1.up    = true;
+                if (this._isZqsdDown(e))  keys.p1.down  = true;
+                if (this._isZqsdLeft(e))  keys.p1.left  = true;
+                if (this._isZqsdRight(e)) keys.p1.right = true;
+            } else {
+                // Flèches pour P1
+                if (e.code === 'ArrowUp')    keys.p1.up    = true;
+                if (e.code === 'ArrowDown')  keys.p1.down  = true;
+                if (e.code === 'ArrowLeft')  keys.p1.left  = true;
+                if (e.code === 'ArrowRight') keys.p1.right = true;
+            }
+            // Touches fixes P1 (toujours pareil)
+            if (e.code === 'KeyF') keys.p1.shoot    = true;
+            if (e.code === 'KeyG') keys.p1.ability1 = true;
+            if (e.code === 'KeyH') keys.p1.ability2 = true;
+            if (e.code === 'KeyT') keys.p1.ultimate = true;
         }
 
-        if (mode === 'local') {
-            if (e.code === 'ArrowLeft')  keys.p2.left     = true;
-            if (e.code === 'ArrowRight') keys.p2.right    = true;
-            if (e.code === 'ArrowUp')    keys.p2.up       = true;
-            if (e.code === 'ArrowDown')  keys.p2.down     = true;
-            if (e.code === 'KeyL')       keys.p2.shoot    = true;
-            if (e.code === 'KeyM')       keys.p2.ability1 = true;
-            if (e.code === 'Semicolon')  keys.p2.ability2 = true;
-            if (e.code === 'KeyP')       keys.p2.ultimate = true;
-        } else if (mode === 'online' && !Network.isHost) {
-            if (e.key === 'q' || e.key === 'Q') keys.p2.left     = true;
-            if (e.code === 'KeyD')              keys.p2.right    = true;
-            if (e.key === 'z' || e.key === 'Z') keys.p2.up       = true;
-            if (e.code === 'KeyS')              keys.p2.down     = true;
-            if (e.code === 'KeyF')              keys.p2.shoot    = true;
-            if (e.code === 'KeyG')              keys.p2.ability1 = true;
-            if (e.code === 'KeyH')              keys.p2.ability2 = true;
-            if (e.code === 'KeyT')              keys.p2.ultimate = true;
+        // ---- P2 ----
+        if (isP2Active) {
+            if (p2Controls === 'arrows') {
+                if (e.code === 'ArrowUp')    keys.p2.up    = true;
+                if (e.code === 'ArrowDown')  keys.p2.down  = true;
+                if (e.code === 'ArrowLeft')  keys.p2.left  = true;
+                if (e.code === 'ArrowRight') keys.p2.right = true;
+            } else {
+                // ZQSD pour P2
+                if (this._isZqsdUp(e))    keys.p2.up    = true;
+                if (this._isZqsdDown(e))  keys.p2.down  = true;
+                if (this._isZqsdLeft(e))  keys.p2.left  = true;
+                if (this._isZqsdRight(e)) keys.p2.right = true;
+            }
+            // Touches fixes P2 (mode local)
+            if (mode === 'local') {
+                if (e.code === 'KeyL')      keys.p2.shoot    = true;
+                if (e.code === 'KeyM')      keys.p2.ability1 = true;
+                if (e.code === 'Semicolon') keys.p2.ability2 = true;
+                if (e.code === 'KeyP')      keys.p2.ultimate = true;
+            } else {
+                // En online le guest utilise les mêmes touches fixes que P1
+                if (e.code === 'KeyF') keys.p2.shoot    = true;
+                if (e.code === 'KeyG') keys.p2.ability1 = true;
+                if (e.code === 'KeyH') keys.p2.ability2 = true;
+                if (e.code === 'KeyT') keys.p2.ultimate = true;
+            }
         }
     },
 
+    // ============================================
+    //  handleKeyUp
+    // ============================================
     handleKeyUp(e, keys, mode) {
-        if (mode !== 'online' || Network.isHost) {
-            if (e.key === 'q' || e.key === 'Q') keys.p1.left     = false;
-            if (e.code === 'KeyD')              keys.p1.right    = false;
-            if (e.key === 'z' || e.key === 'Z') keys.p1.up       = false;
-            if (e.code === 'KeyS')              keys.p1.down     = false;
-            if (e.code === 'KeyF')              keys.p1.shoot    = false;
-            if (e.code === 'KeyG')              keys.p1.ability1 = false;
-            if (e.code === 'KeyH')              keys.p1.ability2 = false;
-            if (e.code === 'KeyT')              keys.p1.ultimate = false;
+        const isP1Active = (mode !== 'online') || Network.isHost;
+        const isP2Active = (mode === 'local')  || (mode === 'online' && !Network.isHost);
+
+        // ---- P1 ----
+        if (isP1Active) {
+            if (p1Controls === 'zqsd') {
+                if (this._isZqsdUp(e))    keys.p1.up    = false;
+                if (this._isZqsdDown(e))  keys.p1.down  = false;
+                if (this._isZqsdLeft(e))  keys.p1.left  = false;
+                if (this._isZqsdRight(e)) keys.p1.right = false;
+            } else {
+                if (e.code === 'ArrowUp')    keys.p1.up    = false;
+                if (e.code === 'ArrowDown')  keys.p1.down  = false;
+                if (e.code === 'ArrowLeft')  keys.p1.left  = false;
+                if (e.code === 'ArrowRight') keys.p1.right = false;
+            }
+            if (e.code === 'KeyF') keys.p1.shoot    = false;
+            if (e.code === 'KeyG') keys.p1.ability1 = false;
+            if (e.code === 'KeyH') keys.p1.ability2 = false;
+            if (e.code === 'KeyT') keys.p1.ultimate = false;
         }
 
-        if (mode === 'local') {
-            if (e.code === 'ArrowLeft')  keys.p2.left     = false;
-            if (e.code === 'ArrowRight') keys.p2.right    = false;
-            if (e.code === 'ArrowUp')    keys.p2.up       = false;
-            if (e.code === 'ArrowDown')  keys.p2.down     = false;
-            if (e.code === 'KeyL')       keys.p2.shoot    = false;
-            if (e.code === 'KeyM')       keys.p2.ability1 = false;
-            if (e.code === 'Semicolon')  keys.p2.ability2 = false;
-            if (e.code === 'KeyP')       keys.p2.ultimate = false;
-        } else if (mode === 'online' && !Network.isHost) {
-            if (e.key === 'q' || e.key === 'Q') keys.p2.left     = false;
-            if (e.code === 'KeyD')              keys.p2.right    = false;
-            if (e.key === 'z' || e.key === 'Z') keys.p2.up       = false;
-            if (e.code === 'KeyS')              keys.p2.down     = false;
-            if (e.code === 'KeyF')              keys.p2.shoot    = false;
-            if (e.code === 'KeyG')              keys.p2.ability1 = false;
-            if (e.code === 'KeyH')              keys.p2.ability2 = false;
-            if (e.code === 'KeyT')              keys.p2.ultimate = false;
+        // ---- P2 ----
+        if (isP2Active) {
+            if (p2Controls === 'arrows') {
+                if (e.code === 'ArrowUp')    keys.p2.up    = false;
+                if (e.code === 'ArrowDown')  keys.p2.down  = false;
+                if (e.code === 'ArrowLeft')  keys.p2.left  = false;
+                if (e.code === 'ArrowRight') keys.p2.right = false;
+            } else {
+                if (this._isZqsdUp(e))    keys.p2.up    = false;
+                if (this._isZqsdDown(e))  keys.p2.down  = false;
+                if (this._isZqsdLeft(e))  keys.p2.left  = false;
+                if (this._isZqsdRight(e)) keys.p2.right = false;
+            }
+            if (mode === 'local') {
+                if (e.code === 'KeyL')      keys.p2.shoot    = false;
+                if (e.code === 'KeyM')      keys.p2.ability1 = false;
+                if (e.code === 'Semicolon') keys.p2.ability2 = false;
+                if (e.code === 'KeyP')      keys.p2.ultimate = false;
+            } else {
+                if (e.code === 'KeyF') keys.p2.shoot    = false;
+                if (e.code === 'KeyG') keys.p2.ability1 = false;
+                if (e.code === 'KeyH') keys.p2.ability2 = false;
+                if (e.code === 'KeyT') keys.p2.ultimate = false;
+            }
         }
     },
-
-
-
-}
+};
