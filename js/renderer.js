@@ -1,378 +1,510 @@
-// ============================================
-//  renderer.js - Dessin Canvas
-// ============================================
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1v1 Legends ⚽</title>
+    <link rel="stylesheet" href="css/menu.css">
+    <link rel="stylesheet" href="css/game.css">
+    <link rel="stylesheet" href="css/ui.css">
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+</head>
+<body>
 
-const Renderer = {
+<div id="toast-container"></div>
+<div id="notif-container"></div>
 
-    init(canvas) {
-        this.canvas = canvas;
-        this.ctx    = canvas.getContext('2d');
-        canvas.width  = window.innerWidth;
-        canvas.height = window.innerHeight;
-        window.addEventListener('resize', () => {
-            canvas.width  = window.innerWidth;
-            canvas.height = window.innerHeight;
-            Zones.init(canvas);
-        });
-    },
+<!-- ================================================
+     SCREEN : MENU PRINCIPAL
+     ================================================ -->
+<div id="screen-menu" class="screen active">
+    <div class="menu-bg">
+        <div class="ball-deco">⚽</div>
+        <div class="particles" id="particles"></div>
+    </div>
 
-    draw(state) {
-        const { ctx, canvas } = this;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    <div class="menu-container">
+        <div class="title-block">
+            <h1 class="title">1v1 <span>Legends</span></h1>
+            <p class="subtitle">⚡ Le foot ultime entre légendes</p>
+        </div>
 
-        this._drawBackground();
-        this._drawZones(state.zones);
-        this._drawGoals();
-        this._drawField();
-        this._drawPowerups(state.powerups);
-        this._drawBallTrail(state.ball);
-        this._drawBall(state.ball);
-        this._drawPlayer(state.p1);
-        this._drawPlayer(state.p2);
-        this._drawEffects(state);
+        <div class="menu-buttons">
+            <button class="btn btn-primary"
+                    onclick="UI.showScreen('screen-online')">
+                🌐 Jouer en ligne
+            </button>
+            <button class="btn btn-secondary"
+                    onclick="UI.showScreen('screen-settings')">
+                ⚙️ Paramètres
+            </button>
+            <button class="btn btn-secondary"
+                    onclick="UI.showScreen('screen-controls')">
+                🎮 Contrôles
+            </button>
+        </div>
 
-        // --- DÉCOMPTE ---
-        if (state.countdown !== null && state.countdown > 0) {
-            const cx = canvas.width  / 2;
-            const cy = canvas.height / 2;
+        <p style="font-size:11px;color:var(--text-dim);opacity:0.5;">
+            v1.0 - Fait avec ❤️
+        </p>
+    </div>
+</div>
 
-            // Fond semi-transparent
-            ctx.save();
-            ctx.fillStyle = 'rgba(0,0,0,0.45)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+<!-- ================================================
+     SCREEN : ONLINE
+     ================================================ -->
+<div id="screen-online" class="screen">
+    <div class="online-container">
+        <div class="online-title">🌐 Jouer en ligne</div>
 
-            // Cercle pulsant
-            const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 80);
-            const radius = 90 * pulse;
-            const gradient = ctx.createRadialGradient(cx, cy, 10, cx, cy, radius);
-            gradient.addColorStop(0, 'rgba(255,220,0,0.95)');
-            gradient.addColorStop(1, 'rgba(255,100,0,0.0)');
-            ctx.beginPath();
-            ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-            ctx.fillStyle = gradient;
-            ctx.fill();
+        <div class="card">
+            <div class="pseudo-block">
+                <label>Ton pseudo</label>
+                <input id="pseudo-input"
+                       class="input-field"
+                       type="text"
+                       placeholder="Entre ton pseudo..."
+                       maxlength="16">
+            </div>
+        </div>
 
-            // Chiffre
-            ctx.font = `bold ${120 * pulse}px 'Segoe UI', sans-serif`;
-            ctx.textAlign    = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle    = '#fff';
-            ctx.shadowColor  = '#ff6600';
-            ctx.shadowBlur   = 40;
-            ctx.fillText(state.countdown, cx, cy);
+        <div class="online-divider">
+            <div class="online-col">
+                <div class="col-label">🏠 Créer une partie</div>
+                <button class="btn btn-primary"
+                        onclick="Network.createRoom()">
+                    ➕ Créer
+                </button>
 
-            // Texte "Prêt ?"
-            ctx.font         = 'bold 28px sans-serif';
-            ctx.fillStyle    = 'rgba(255,255,255,0.8)';
-            ctx.shadowBlur   = 10;
-            ctx.fillText('Prêts ?', cx, cy + 90);
+                <div id="room-code-display" class="room-code-block hidden">
+                    <div class="room-code-label">Code de ta partie</div>
+                    <div id="room-code-text" class="room-code-value">---</div>
+                    <div class="room-code-actions">
+                        <button class="btn btn-sm btn-accent"
+                                onclick="Network.copyCode()">
+                            📋 Copier
+                        </button>
+                    </div>
+                    <p class="waiting-text">⏳ En attente de ton adversaire...</p>
+                </div>
+            </div>
 
-            ctx.restore();
-        }
+            <div class="divider-bar"></div>
 
-    },
+            <div class="online-col">
+                <div class="col-label">🔗 Rejoindre</div>
+                <input id="join-code-input"
+                    class="input-field"
+                    type="text"
+                    placeholder="Colle le code ici..."
+                    style="letter-spacing:1px;font-size:11px;">
+                <button class="btn btn-green"
+                        onclick="Network.joinRoom()">
+                    ✅ Rejoindre
+                </button>
+            </div>
+        </div>
 
+        <div id="online-status" class="status-bar">
+            🔌 Non connecté
+        </div>
 
-    // --- Fond ---
-    _drawBackground() {
-        const { ctx, canvas } = this;
-        const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        grad.addColorStop(0, '#0d0d1f');
-        grad.addColorStop(1, '#0a0a15');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-    },
+        <button class="btn btn-secondary"
+                onclick="UI.showScreen('screen-menu')">
+            ← Retour
+        </button>
+    </div>
+</div>
 
-    // --- Terrain ---
-    _drawField() {
-        const { ctx, canvas } = this;
-        const ground = canvas.height - 60;
+<!-- ================================================
+     SCREEN : SÉLECTION PERSONNAGE
+     ================================================ -->
+<div id="screen-character" class="screen">
+    <div class="character-container">
+        <h2 id="select-title">⚡ Choisis ton Legend</h2>
 
-        // Sol
-        ctx.fillStyle = '#1a1a3a';
-        ctx.fillRect(0, ground, canvas.width, 60);
-        ctx.strokeStyle = '#2a2a5a';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(0, ground, canvas.width, 60);
+        <div class="char-panels">
 
-        // Ligne centrale
-        ctx.setLineDash([12, 8]);
-        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-        ctx.lineWidth   = 2;
-        ctx.beginPath();
-        ctx.moveTo(canvas.width / 2, 70);
-        ctx.lineTo(canvas.width / 2, ground);
-        ctx.stroke();
-        ctx.setLineDash([]);
+            <div id="char-select-p1" class="char-panel hidden">
+                <div class="char-panel-label p1">⚡ Joueur 1 (Toi)</div>
+                <div id="chars-p1" class="chars-grid"></div>
 
-        // Cercle central
-        ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-        ctx.lineWidth   = 2;
-        ctx.beginPath();
-        ctx.arc(canvas.width / 2, canvas.height / 2, 90, 0, Math.PI * 2);
-        ctx.stroke();
+                <div id="preview-p1" class="char-preview">
+                    <span style="color:var(--text-dim);font-size:14px;">
+                        Sélectionne un Legend
+                    </span>
+                </div>
 
-        // Point central
-        ctx.fillStyle = 'rgba(255,255,255,0.15)';
-        ctx.beginPath();
-        ctx.arc(canvas.width / 2, canvas.height / 2, 5, 0, Math.PI * 2);
-        ctx.fill();
-    },
+                <div id="stats-p1" class="stats-bars" style="display:none">
+                    <div class="stat-row">
+                        <span class="stat-label">⚡ Vitesse</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p1-speed"
+                                 style="background:linear-gradient(90deg,#6366f1,#818cf8)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p1-speed-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">💥 Puissance</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p1-power"
+                                 style="background:linear-gradient(90deg,#ef4444,#f87171)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p1-power-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">⚡ Stamina</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p1-stamina"
+                                 style="background:linear-gradient(90deg,#10b981,#6ee7b7)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p1-stamina-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">🛡️ Défense</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p1-defense"
+                                 style="background:linear-gradient(90deg,#06b6d4,#67e8f9)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p1-defense-val"></span>
+                    </div>
+                </div>
 
-    // --- Cages ---
-    _drawGoals() {
-        const { ctx, canvas } = this;
-        const goalW  = 18;
-        const goalH  = 160;
-        const goalTop = canvas.height / 2 - goalH / 2;
+                <div id="abilities-p1" class="abilities-preview" style="display:none"></div>
 
-        // Cage gauche (P1 défend)
-        ctx.fillStyle   = 'rgba(99,102,241,0.15)';
-        ctx.strokeStyle = '#6366f1';
-        ctx.lineWidth   = 3;
-        ctx.fillRect(0, goalTop, goalW, goalH);
-        ctx.strokeRect(0, goalTop, goalW, goalH);
+                <button id="confirm-p1" class="btn btn-primary" disabled
+                        onclick="confirmMyChar()">
+                    ✅ Confirmer ce Legend
+                </button>
+            </div>
 
-        // Cage droite (P2 défend)
-        ctx.fillStyle   = 'rgba(239,68,68,0.15)';
-        ctx.strokeStyle = '#ef4444';
-        ctx.fillRect(canvas.width - goalW, goalTop, goalW, goalH);
-        ctx.strokeRect(canvas.width - goalW, goalTop, goalW, goalH);
-    },
+            <div id="char-select-p2" class="char-panel hidden">
+                <div class="char-panel-label p2">🔥 Joueur 2 (Toi)</div>
+                <div id="chars-p2" class="chars-grid"></div>
 
-    // --- Zones spéciales ---
-    _drawZones(zones) {
-        if (!GameSettings.zonesEnabled || !zones) return;
-        const { ctx } = this;
+                <div id="preview-p2" class="char-preview">
+                    <span style="color:var(--text-dim);font-size:14px;">
+                        Sélectionne un Legend
+                    </span>
+                </div>
 
-        zones.forEach(z => {
-            const pulse = 0.7 + 0.3 * Math.sin(z.pulseTimer);
+                <div id="stats-p2" class="stats-bars" style="display:none">
+                    <div class="stat-row">
+                        <span class="stat-label">⚡ Vitesse</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p2-speed"
+                                 style="background:linear-gradient(90deg,#6366f1,#818cf8)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p2-speed-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">💥 Puissance</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p2-power"
+                                 style="background:linear-gradient(90deg,#ef4444,#f87171)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p2-power-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">⚡ Stamina</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p2-stamina"
+                                 style="background:linear-gradient(90deg,#10b981,#6ee7b7)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p2-stamina-val"></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label">🛡️ Défense</span>
+                        <div class="stat-bar-bg">
+                            <div class="stat-bar-fill" id="stat-p2-defense"
+                                 style="background:linear-gradient(90deg,#06b6d4,#67e8f9)"></div>
+                        </div>
+                        <span class="stat-val" id="stat-p2-defense-val"></span>
+                    </div>
+                </div>
 
-            // Fond
-            ctx.fillStyle = z.color;
-            ctx.fillRect(z.rx, z.ry, z.w, z.h);
+                <div id="abilities-p2" class="abilities-preview" style="display:none"></div>
 
-            // Bordure pulsante
-            ctx.strokeStyle = z.border;
-            ctx.lineWidth   = 2 * pulse;
-            ctx.setLineDash([6, 4]);
-            ctx.strokeRect(z.rx, z.ry, z.w, z.h);
-            ctx.setLineDash([]);
+                <button id="confirm-p2" class="btn btn-danger" disabled
+                        onclick="confirmMyChar()">
+                    ✅ Confirmer ce Legend
+                </button>
+            </div>
 
-            // Icône + label
-            ctx.font      = '20px serif';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = z.border;
-            ctx.fillText(z.icon, z.rx + z.w / 2, z.ry + z.h / 2 - 4);
-            ctx.font      = 'bold 9px Segoe UI';
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.fillText(z.label, z.rx + z.w / 2, z.ry + z.h / 2 + 12);
-        });
-    },
+        </div>
 
-    // --- Power-ups ---
-    _drawPowerups(powerups) {
-        if (!powerups) return;
-        const { ctx } = this;
+        <button class="btn btn-secondary btn-sm"
+                onclick="UI.showScreen('screen-menu')">
+            ← Retour au menu
+        </button>
+    </div>
+</div>
 
-        powerups.forEach(pu => {
-            if (pu.collected) return;
-            const y = pu.y + (pu.floatY || 0);
+<!-- ================================================
+     SCREEN : JEU
+     ================================================ -->
+<div id="screen-game" class="screen">
+    <div class="game-wrapper">
 
-            // Halo
-            const grad = ctx.createRadialGradient(pu.x, y, 0, pu.x, y, pu.radius * 2);
-            grad.addColorStop(0, pu.color + '55');
-            grad.addColorStop(1, 'transparent');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(pu.x, y, pu.radius * 2, 0, Math.PI * 2);
-            ctx.fill();
+        <canvas id="gameCanvas" width="1280" height="720"></canvas>
 
-            // Cercle
-            ctx.fillStyle   = pu.color + '33';
-            ctx.strokeStyle = pu.color;
-            ctx.lineWidth   = 2.5;
-            ctx.beginPath();
-            ctx.arc(pu.x, y, pu.radius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+        <div id="hud">
+            <div class="hud-player p1">
+                <div class="hud-name">
+                    <span id="hud-p1-emoji">⚡</span>
+                    <span id="hud-p1-name">Joueur 1</span>
+                </div>
+                <div class="stamina-bar-bg">
+                    <div id="hud-p1-stamina" class="stamina-bar-fill" style="width:100%"></div>
+                </div>
+                <div class="ult-bar-bg">
+                    <div id="hud-p1-ult" class="ult-bar-fill" style="width:0%"></div>
+                </div>
+                <div class="hud-abilities" id="hud-abilities-p1"></div>
+            </div>
 
-            // Icône
-            ctx.font      = '18px serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = '#fff';
-            ctx.fillText(pu.icon, pu.x, y);
-            ctx.textBaseline = 'alphabetic';
-        });
-    },
+            <div id="hud-center">
+                <div class="hud-score">
+                    <span id="score-p1">0</span>
+                    <span style="color:var(--text-dim);font-size:24px;"> - </span>
+                    <span id="score-p2">0</span>
+                </div>
+                <div id="hud-timer" class="hud-timer">3:00</div>
+                <div id="ping-display" style="display:none">--ms</div>
+            </div>
 
-    // --- Trail balle ---
-    _drawBallTrail(ball) {
-        if (!ball || !ball.trail) return;
-        const { ctx } = this;
-        ball.trail.forEach((pos, i) => {
-            const alpha = (1 - i / ball.trail.length) * 0.25;
-            const r     = ball.radius * (1 - i / ball.trail.length) * 0.8;
-            ctx.fillStyle = ball.glowing
-                ? `rgba(255,200,0,${alpha})`
-                : `rgba(255,255,255,${alpha})`;
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-            ctx.fill();
-        });
-    },
+            <div class="hud-player p2">
+                <div class="hud-name">
+                    <span id="hud-p2-name">Joueur 2</span>
+                    <span id="hud-p2-emoji">🔥</span>
+                </div>
+                <div class="stamina-bar-bg">
+                    <div id="hud-p2-stamina" class="stamina-bar-fill" style="width:100%"></div>
+                </div>
+                <div class="ult-bar-bg">
+                    <div id="hud-p2-ult" class="ult-bar-fill" style="width:0%"></div>
+                </div>
+                <div class="hud-abilities" id="hud-abilities-p2"></div>
+            </div>
+        </div>
 
-    // --- Balle ---
-    _drawBall(ball) {
-        if (!ball) return;
-        const { ctx } = this;
+        <div id="goal-overlay" class="hidden">
+            <div class="goal-text">⚽ GOAL !</div>
+            <div class="goal-scorer"></div>
+        </div>
 
-        // Glow si spécial
-        if (ball.glowing || ball.laser || ball.mega) {
-            const color = ball.mega ? '#ef4444' : ball.laser ? '#06b6d4' : '#fbbf24';
-            const grad  = ctx.createRadialGradient(ball.x, ball.y, 0, ball.x, ball.y, ball.radius * 2.5);
-            grad.addColorStop(0, color + 'aa');
-            grad.addColorStop(1, 'transparent');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(ball.x, ball.y, ball.radius * 2.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        <div id="end-screen" class="hidden">
+            <div class="winner-text">---</div>
+            <div class="final-score">0 - 0</div>
+            <div class="end-buttons">
+                <button class="btn btn-primary" onclick="replayGame()">🔄 Rejouer</button>
+                <button class="btn btn-secondary" onclick="goToMenu()">🏠 Menu</button>
+            </div>
+        </div>
 
-        // Ombre
-        ctx.fillStyle = 'rgba(0,0,0,0.3)';
-        ctx.beginPath();
-        ctx.ellipse(ball.x, ball.y + ball.radius + 2, ball.radius * 0.8, 5, 0, 0, Math.PI * 2);
-        ctx.fill();
+        <div id="pause-overlay" class="hidden">
+            <div class="pause-title">⏸ PAUSE</div>
+            <div class="pause-buttons">
+                <button class="btn btn-primary"
+                        onclick="GameLoop.togglePause()">▶ Reprendre</button>
+                <button class="btn btn-secondary"
+                        onclick="goToMenu()">🏠 Menu principal</button>
+            </div>
+        </div>
 
-        // Balle
-        ctx.font         = `${ball.radius * 2}px serif`;
-        ctx.textAlign    = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('⚽', ball.x, ball.y);
-        ctx.textBaseline = 'alphabetic';
-    },
+    </div>
+</div>
 
-    // --- Joueur ---
-    _drawPlayer(player) {
-        if (!player) return;
-        const { ctx } = this;
+<!-- ================================================
+     SCREEN : PARAMÈTRES
+     ================================================ -->
+<div id="screen-settings" class="screen">
+    <div class="settings-container">
+        <div class="settings-title">⚙️ Paramètres</div>
 
-        // Clone
-        if (player.cloneActive && player.clone) {
-            ctx.globalAlpha = player.clone.alpha;
-            this._drawPlayerBody(player.clone.x, player.clone.y, player, true);
-            ctx.globalAlpha = 1;
-        }
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>🔥 Zones spéciales</span>
+                <span>Boost, glace, précision...</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="toggle-zones" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
 
-        // Bouclier
-        if (player.shield) {
-            ctx.strokeStyle = '#6366f1';
-            ctx.lineWidth   = 4;
-            ctx.globalAlpha = 0.7;
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.globalAlpha = 1;
-        }
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>🎁 Power-ups</span>
+                <span>Objets aléatoires en jeu</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="toggle-powerups" checked>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
 
-        // Glow ultime
-        if (player.glowing) {
-            const grad = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, player.radius * 2.5);
-            grad.addColorStop(0, player.color + '88');
-            grad.addColorStop(1, 'transparent');
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, player.radius * 2.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>⏱️ Durée du match</span>
+                <span>En minutes</span>
+            </div>
+            <select id="match-duration" class="setting-select">
+                <option value="1">1 min</option>
+                <option value="2">2 min</option>
+                <option value="3" selected>3 min</option>
+                <option value="5">5 min</option>
+            </select>
+        </div>
 
-        // Freeze overlay
-        if (player.frozen) {
-            ctx.fillStyle = 'rgba(6,182,212,0.25)';
-            ctx.beginPath();
-            ctx.arc(player.x, player.y, player.radius + 5, 0, Math.PI * 2);
-            ctx.fill();
-        }
+        <div class="setting-row">
+            <div class="setting-label">
+                <span>🏆 Score victoire</span>
+                <span>Buts pour gagner</span>
+            </div>
+            <select id="win-score" class="setting-select">
+                <option value="3">3 buts</option>
+                <option value="5" selected>5 buts</option>
+                <option value="7">7 buts</option>
+                <option value="99">∞ Infini</option>
+            </select>
+        </div>
 
-        this._drawPlayerBody(player.x, player.y, player, false);
+        <button class="btn btn-primary" onclick="saveSettings()">
+            💾 Sauvegarder
+        </button>
+        <button class="btn btn-secondary"
+                onclick="UI.showScreen('screen-menu')">
+            ← Retour
+        </button>
+    </div>
+</div>
 
-        // Barre de vie stamina au-dessus
-        this._drawStaminaBar(player);
+<!-- ================================================
+     SCREEN : CONTRÔLES
+     ================================================ -->
+<div id="screen-controls" class="screen">
+    <div class="settings-container">
+        <div class="settings-title">🎮 Contrôles</div>
 
-        // Nom
-        ctx.font      = 'bold 11px Segoe UI';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = player.color;
-        ctx.fillText(player.name, player.x, player.y - player.radius - 22);
-    },
+        <!-- ✅ SÉLECTEUR DE TOUCHES -->
+        <div class="card">
+            <div class="card-title" style="color:var(--text)">🕹️ Choisir les touches de déplacement</div>
 
-    _drawPlayerBody(x, y, player, isClone) {
-        const { ctx } = this;
+            <!-- P1 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="color:var(--primary);font-weight:bold;">⚡ Joueur 1</span>
+                <div style="display:flex;gap:8px;">
+                    <button id="btn-p1-zqsd" class="btn btn-sm btn-primary"
+                            onclick="setControls(1,'zqsd')">
+                        ZQSD ✅
+                    </button>
+                    <button id="btn-p1-arrows" class="btn btn-sm btn-secondary"
+                            onclick="setControls(1,'arrows')">
+                        ← ↑ → ↓
+                    </button>
+                </div>
+            </div>
 
-        // Cercle corps
-        ctx.fillStyle   = isClone ? 'rgba(255,255,255,0.1)' : player.color + '33';
-        ctx.strokeStyle = isClone ? 'rgba(255,255,255,0.3)' : player.color;
-        ctx.lineWidth   = isClone ? 2 : 3;
-        ctx.beginPath();
-        ctx.arc(x, y, player.radius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.stroke();
+            <!-- P2 -->
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="color:var(--secondary);font-weight:bold;font-size:15px;">🔥 Joueur 2</span>
+                <div style="display:flex;gap:8px;">
+                    <button id="btn-p2-zqsd"
+                            onclick="setControls(2,'zqsd')"
+                            style="padding:6px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;background:rgba(255,255,255,0.1);color:white;">
+                        ZQSD
+                    </button>
+                    <button id="btn-p2-arrows"
+                            onclick="setControls(2,'arrows')"
+                            style="padding:6px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:bold;background:var(--primary);color:white;">
+                        ← ↑ → ↓ ✅
+                    </button>
+                </div>
+            </div>
+        </div>
 
-        // Emoji personnage
-        ctx.font         = `${player.radius * 1.4}px serif`;
-        ctx.textAlign    = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(player.emoji, x, y);
-        ctx.textBaseline = 'alphabetic';
+        <!-- Touches P1 -->
+        <div class="card">
+            <div class="card-title" style="color:var(--primary)">⚡ Joueur 1</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;">
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Se déplacer</span>
+                    <span id="label-p1-move" style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">Q / D / Z / S</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Tirer</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">F</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Capacité 1</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">G</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Capacité 2</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">H</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">🌟 ULTIME</span>
+                    <span style="font-family:monospace;background:rgba(250,204,21,0.15);color:var(--accent);padding:2px 8px;border-radius:6px;">T</span>
+                </div>
+            </div>
+        </div>
 
-        // Indicateur direction
-        const arrowX = x + (player.facingRight ? player.radius + 6 : -player.radius - 6);
-        ctx.fillStyle = player.color;
-        ctx.font      = '10px serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(player.facingRight ? '▶' : '◀', arrowX, y);
-        ctx.textBaseline = 'alphabetic';
-    },
+        <!-- Touches P2 -->
+        <div class="card">
+            <div class="card-title" style="color:var(--secondary)">🔥 Joueur 2</div>
+            <div style="display:flex;flex-direction:column;gap:10px;font-size:14px;">
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Se déplacer</span>
+                    <span id="label-p2-move" style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">← / → / ↑ / ↓</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Tirer</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">L</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Capacité 1</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">M</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">Capacité 2</span>
+                    <span style="font-family:monospace;background:rgba(255,255,255,0.08);padding:2px 8px;border-radius:6px;">;</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                    <span style="color:var(--text-dim)">🌟 ULTIME</span>
+                    <span style="font-family:monospace;background:rgba(250,204,21,0.15);color:var(--accent);padding:2px 8px;border-radius:6px;">P</span>
+                </div>
+            </div>
+        </div>
 
-    _drawStaminaBar(player) {
-        const { ctx }   = this;
-        const barW      = 50;
-        const barH      = 5;
-        const bx        = player.x - barW / 2;
-        const by        = player.y - player.radius - 14;
-        const pct       = player.stamina / player.maxStamina;
-        const color     = pct > 0.5 ? '#10b981' : pct > 0.25 ? '#f59e0b' : '#ef4444';
+        <div class="card" style="text-align:center;">
+            <span style="font-size:13px;color:var(--text-dim)">
+                ⏸ <strong style="color:var(--text)">Echap</strong> → Pause
+            </span>
+        </div>
 
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-        ctx.beginPath();
-        ctx.roundRect(bx, by, barW, barH, 3);
-        ctx.fill();
+        <button class="btn btn-secondary"
+                onclick="UI.showScreen('screen-menu')">
+            ← Retour
+        </button>
+    </div>
+</div>
 
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.roundRect(bx, by, barW * pct, barH, 3);
-        ctx.fill();
-    },
+<!-- ================================================
+     SCRIPTS (ordre important)
+     ================================================ -->
+<script src="js/characters.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/abilities.js"></script>
+<script src="js/powerups.js"></script>
+<script src="js/zones.js"></script>
+<script src="js/player.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/network.js"></script>
+<script src="js/game.js"></script>
+<script src="js/main.js"></script>
 
-    // --- Effets globaux ---
-    _drawEffects(state) {
-        const { ctx, canvas } = this;
-
-        // Slow-mo overlay
-        if (state.slowMo) {
-            ctx.fillStyle = 'rgba(99,102,241,0.05)';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // Flash but
-        if (state.goalFlash > 0) {
-            ctx.fillStyle = `rgba(255,255,255,${state.goalFlash * 0.3})`;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-    },
-
-
-};
+</body>
+</html>
