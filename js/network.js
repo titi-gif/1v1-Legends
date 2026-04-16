@@ -39,7 +39,6 @@ const Network = {
         this.isHost = true;
         this.myRole = 'host';
 
-
         this.init(realId => {
             this.roomCode = realId;
 
@@ -70,10 +69,7 @@ const Network = {
                     this.send({ type: 'hello', pseudo: this.pseudo, role: 'host' });
                 }
 
-                conn.on('close', () => {
-                    UI.updateConnectionStatus(false);
-                });
-
+                conn.on('close', () => { UI.updateConnectionStatus(false); });
                 conn.on('error', err => {
                     console.error('[Network] Conn error:', err);
                     UI.updateConnectionStatus(false);
@@ -112,7 +108,6 @@ const Network = {
         this.isHost = false;
         this.myRole = 'guest';
 
-
         this.init(myId => {
             console.log('[Network] Mon ID guest:', myId);
             console.log('[Network] Connexion vers:', code);
@@ -124,9 +119,7 @@ const Network = {
             this.conn = conn;
 
             const timeout = setTimeout(() => {
-                if (!conn.open) {
-                    UI.updateConnectionStatus(false);
-                }
+                if (!conn.open) UI.updateConnectionStatus(false);
             }, 10000);
 
             conn.on('data', data => {
@@ -141,10 +134,7 @@ const Network = {
                 this.send({ type: 'hello', pseudo: this.pseudo, role: 'guest' });
             });
 
-            conn.on('close', () => {
-                UI.updateConnectionStatus(false);
-            });
-
+            conn.on('close', () => { UI.updateConnectionStatus(false); });
             conn.on('error', err => {
                 clearTimeout(timeout);
                 console.error('[Network] Conn error:', err);
@@ -159,7 +149,6 @@ const Network = {
             case 'notif':
                 UI.addNotif(data.msg);
                 break;
-
 
             case 'hello':
                 this.opponentPseudo = data.pseudo;
@@ -198,7 +187,39 @@ const Network = {
                 }
                 break;
 
-            // ✅ FIX RÉSOLUTION : conversion des positions host → guest
+            // ✅ BUT : le guest reçoit le goal immédiatement
+            case 'goal':
+                if (!Network.isHost && GameLoop.state) {
+                    const state = GameLoop.state;
+                    state.scores  = data.scores;
+                    state.goalFlash = 1;
+                    GameLoop.paused = true;
+
+                    if (data.scorer === 'goal_p1') {
+                        UI.showGoalOverlay(state.p1.name);
+                        UI.addNotif(`⚽ BUT pour ${state.p1.name} !`);
+                    } else if (data.scorer === 'goal_p2') {
+                        UI.showGoalOverlay(state.p2.name);
+                        UI.addNotif(`⚽ BUT pour ${state.p2.name} !`);
+                    }
+                }
+                break;
+
+            // ✅ COUNTDOWN : le guest suit le décompte du host
+            case 'countdown':
+                if (!Network.isHost && GameLoop.state) {
+                    if (data.value === 0) {
+                        // Reprendre le jeu
+                        GameLoop.state.countdown = null;
+                        GameLoop.paused = false;
+                    } else {
+                        // Afficher le décompte
+                        GameLoop.state.countdown = data.value;
+                        GameLoop.paused = true;
+                    }
+                }
+                break;
+
             case 'state':
                 if (!Network.isHost && GameLoop.state) {
                     const canvas = Renderer.canvas;
@@ -220,27 +241,10 @@ const Network = {
                     GameLoop.state.ball.vx = data.ball.vx * rx;
                     GameLoop.state.ball.vy = data.ball.vy * ry;
 
-                    // ← AJOUT : sync scores, timer et goal
-                    const oldP1 = GameLoop.state.scores.p1;
-                    const oldP2 = GameLoop.state.scores.p2;
-
-                    GameLoop.state.scores  = data.scores;
-                    GameLoop.state.timer   = data.timer;
-
-                    // Détection d'un nouveau but
-                    if (data.scores.p1 > oldP1) {
-                        UI.showGoalOverlay(GameLoop.state.p1.name);
-                        UI.addNotif(`⚽ BUT pour ${GameLoop.state.p1.name} !`);
-                        GameLoop.state.goalFlash = 1;
-                    }
-                    if (data.scores.p2 > oldP2) {
-                        UI.showGoalOverlay(GameLoop.state.p2.name);
-                        UI.addNotif(`⚽ BUT pour ${GameLoop.state.p2.name} !`);
-                        GameLoop.state.goalFlash = 1;
-                    }
+                    GameLoop.state.timer = data.timer;
+                    // ⚠️ Les scores sont maintenant gérés via 'goal', on ne les réécrit plus ici
                 }
                 break;
-
 
             case 'match_end':
                 if (!Network.isHost) {
@@ -282,7 +286,7 @@ const Network = {
     },
 
     sendCharacterChoice(char) {
-        this.send({ type: 'char-selected', char: char });
+        this.send({ type: 'char-selected', char });
     },
 
     send(data) {
@@ -320,9 +324,7 @@ const Network = {
         if (!this.conn || !this.conn.open) return;
         this.conn.send({
             type: 'inputs',
-            keys: keys.p2   // ← touches P2 du guest
+            keys: keys.p2
         });
     },
-
-
 };
