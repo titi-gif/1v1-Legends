@@ -39,14 +39,32 @@ function generateParticles() {
 }
 
 // ==========================================
-//  SÉLECTION DE PERSONNAGE (ONLINE ONLY)
+//  CONTRÔLES - Choix des touches
+// ==========================================
+function setControls(player, scheme) {
+    if (player === 1) {
+        p1Controls = scheme;
+        document.getElementById('btn-p1-zqsd').className   = scheme === 'zqsd'   ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        document.getElementById('btn-p1-arrows').className = scheme === 'arrows' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        document.getElementById('btn-p1-zqsd').textContent   = scheme === 'zqsd'   ? 'ZQSD ✅' : 'ZQSD';
+        document.getElementById('btn-p1-arrows').textContent = scheme === 'arrows' ? '← ↑ → ↓ ✅' : '← ↑ → ↓';
+    } else {
+        p2Controls = scheme;
+        document.getElementById('btn-p2-zqsd').className   = scheme === 'zqsd'   ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        document.getElementById('btn-p2-arrows').className = scheme === 'arrows' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+        document.getElementById('btn-p2-zqsd').textContent   = scheme === 'zqsd'   ? 'ZQSD ✅' : 'ZQSD';
+        document.getElementById('btn-p2-arrows').textContent = scheme === 'arrows' ? '← ↑ → ↓ ✅' : '← ↑ → ↓';
+    }
+}
+
+
+// ==========================================
+//  SÉLECTION DE PERSONNAGE
 // ==========================================
 function initCharacterSelect() {
     UI.showScreen('screen-character');
 
     const isHost = Network.isHost;
-    console.log('[DEBUG] isHost:', isHost);
-
     const p1Panel = document.getElementById('char-select-p1');
     const p2Panel = document.getElementById('char-select-p2');
 
@@ -60,21 +78,15 @@ function initCharacterSelect() {
         document.getElementById('select-title').textContent = '🔥 Choisis ton Legend (P2)';
     }
 
-    // ✅ Bons IDs : chars-p1 / chars-p2
     renderCharacterCards('p1');
     renderCharacterCards('p2');
 }
 
 function renderCharacterCards(slot) {
-    // ✅ Corrigé : chars-p1 / chars-p2 (pas char-grid-...)
     const grid = document.getElementById(`chars-${slot}`);
-    if (!grid) {
-        console.warn(`[WARN] Grid chars-${slot} introuvable`);
-        return;
-    }
+    if (!grid) return;
     grid.innerHTML = '';
 
-    // ✅ Bouton confirm correspondant
     const confirmBtn = document.getElementById(`confirm-${slot}`);
 
     Characters.roster.forEach(char => {
@@ -89,17 +101,11 @@ function renderCharacterCards(slot) {
             const mySlot = Network.isHost ? 'host' : 'guest';
             selectedChars[mySlot] = char;
 
-            // Highlight
             grid.querySelectorAll('.char-card').forEach(c => c.classList.remove('selected'));
             card.classList.add('selected');
 
-            // ✅ Active le bouton confirm
             if (confirmBtn) confirmBtn.disabled = false;
-
-            // ✅ Met à jour la preview
             updatePreview(slot, char);
-
-            console.log(`[DEBUG] ${mySlot} a choisi ${char.name}`);
         };
         grid.appendChild(card);
     });
@@ -115,7 +121,6 @@ function updatePreview(slot, char) {
         `;
     }
 
-    // Stats
     const statsEl = document.getElementById(`stats-${slot}`);
     if (statsEl && char.stats) {
         statsEl.style.display = 'flex';
@@ -133,13 +138,12 @@ function updatePreview(slot, char) {
 }
 
 // ==========================================
-//  CONFIRMATION (ONLINE ONLY)
+//  CONFIRMATION
 // ==========================================
 function confirmMyChar() {
     const mySlot = Network.isHost ? 'host' : 'guest';
     const chosen = selectedChars[mySlot];
 
-    // Désactive le bouton
     const btnId = Network.isHost ? 'confirm-p1' : 'confirm-p2';
     const btn = document.getElementById(btnId);
     if (btn) {
@@ -150,13 +154,10 @@ function confirmMyChar() {
     Network.sendCharacterChoice(chosen);
 }
 
-
-// Appelé par Network quand les deux ont confirmé
 function bothCharsReady() {
     const p1Char = selectedChars.host;
     const p2Char = selectedChars.guest;
 
-    console.log('[DEBUG] Lancement !', p1Char.name, 'vs', p2Char.name);
     UI.showScreen('screen-game');
     GameLoop.start('online', p1Char, p2Char);
 }
@@ -169,7 +170,6 @@ function replayGame() {
     if (el) { el.classList.add('hidden'); el.classList.remove('show'); }
     selectedChars = { host: null, guest: null };
 
-    // Réinitialise les boutons confirm
     const b1 = document.getElementById('confirm-p1');
     const b2 = document.getElementById('confirm-p2');
     if (b1) { b1.textContent = '✅ Confirmer ce Legend'; b1.disabled = true; }
